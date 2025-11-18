@@ -1,0 +1,48 @@
+🟩 PROMPT REPLIT — PROJET APP “DISCOVERY FLIGHTS FLEX”
+
+🎯 Objectif global du projet
+Construire une application web nommée provisoirement “Discovery Flights Flex” qui permet aux utilisateurs :
+d’explorer des destinations auxquelles ils n’auraient pas pensé, dans le monde entiersans dates spécifiques, mais à partir :d’un budgetd’un aéroport de départd’un pattern de disponibilité (“week-end vendredi soir → dimanche soir”, “2 semaines consécutives”, “vacances scolaires peu importe lesquelles”, etc.)d’automatiser la veille : l’utilisateur sauvegarde une recherche et reçoit des alertes lorsqu’un vol correspondant à ses critères devient intéressant.L’app doit être radicalement différente de Skyscanner / Kayak : elle ne demande pas une date, mais une logique de disponibilité flexible.
+L’objectif est la découverte mondiale et l’inspiration, pas seulement la comparaison de prix.
+
+🧠 USP — Ce qui rend ce produit unique / ce que Replit doit prioriser
+Recherche basée sur disponibilités, pas sur dates (pattern flexible)Découverte intelligente de destinations inattenduesRatisser large (le monde entier, pas seulement l’Europe)Archive des recherches + alertes automatiques quand un prix baisseOptimisation des coûts API via une approche hybride (voir plus bas)Monétisation intégrée via liens d’affiliationUn produit pour voyageurs flexibles, pas pour voyageurs planifiésLe produit doit apporter de la valeur unique par rapport à Google Flights, Skyscanner, Kayak, etc.
+
+🧱 Architecture globale à implémenter
+🔹 Backend (Python ou Node)
+API interne qui gère :génération de patterns de dates (week-ends, semaines, vacances scolaires, etc.)sélection initiale de destinations via dataset statique + heuristiquesappels API vers Kiwi.com — Tequila API (API principale recommandée)stockage des recherches utilisateurssystème d’alertes et de tâches planifiéescache pour limiter les appels API payantsConserver un design modulaire, pour facilement ajouter d’autres APIs plus tard (Ex : Amadeus, Skyscanner).🔹 Frontend
+Formulaire simple pour définir :aéroport de départbudget maxpattern de disponibilité flexiblerayon de distance optionnelInterface "inspiration" :afficher des destinations inattendues, cartes, curiosités, suggestions automatiques.Résultats consultables et sauvegardables.Page des alertes / historique de prix.🔹 Base de données
+Utiliser une DB légère d’abord (SQLite ou Postgres hébergé type Supabase).Tables : utilisateurs, recherches sauvegardées, destinations scorées, historiques de prix, alertes.🔹 Scheduler / cron jobs
+Vérification régulière des recherches sauvegardéesRafraîchissement partiel (pas toutes les destinations à chaque fois → stratégie smart)
+🛰️ APIs & Données à utiliser
+🟩 API principale : Kiwi.com — Tequila API
+Pourquoi : ultra flexible, couvre low-cost mondial, API idéale pour découverte, intégration d’affiliation.Utilisation recommandée :recherche de vols temps réelgénération de liens affiliésrecherche flexible (multi-dates, budget, rayon, etc.)🟨 Données statiques / hybrides (réduire les coûts)
+Objectif : réduire drastiquement le nombre d’appels API en ratisser large sans payer cher.
+Utiliser :
+OpenFlights (airports, routes)Données historiques publiques (Kiwi parfois, Kaggle datasets, etc.)Listes de destinations “inattendues” (générées offline)Ces datasets servent à générer une liste intelligente de destinations candidates, avant tout appel API.
+
+🧮 Stratégie d’optimisation du coût API (cruciale)
+⚠️ Problème à résoudre
+Interroger chaque combinaison destination × week-end × utilisateur coûte beaucoup trop cher.
+🎯 Solution hybride
+Implémenter une stratégie “2 étages” :
+Étape 1 : Large search (quasi-gratuite)
+Utiliser dataset statique pour proposer 20 destinations peu connues mais pertinentes.Scoring basé sur :durée de volroutes existantessaisonnalitéprix moyens historiquesrareté / originalitéAucune requête API payante ici.Étape 2 : Sélection intelligente
+L’utilisateur choisit 3–5 destinations à suivreL’utilisateur valide 1 pattern de disponibilitéÉtape 3 : Appel API temps réel (payer seulement là)
+Kiwi Tequila API pour prix actuelsNombre réduit d’appels :ex : 5 dest. × 2–3 week-ends = ~10–15 appelsÉtape 4 : Alertes
+Stocker le prix obtenuSi variation significative → envoyer une alerteLes refreshs sont limités (ex: 1×/jour)
+💰 Monétisation à intégrer absolument
+1. Affiliation Kiwi (principal)
+Chaque résultat doit inclure un bouton “Réserver” → lien affilié Kiwi.
+2. Premium
+alertes plus fréquentesplus de destinations suiviespattern personnalisés illimitéshistorique de prix sur 12 mois~2,99–4,99 €/mois3. Ads / partenariats légers
+assurance voyagecartes SIM internationnaleshôtels/Booking.com
+🎨 Fonctionnalités du MVP (à coder)
+Recherche flexible avec 3 inputsaéroport de départbudgetpattern de dates (ex : week-end 48 occurrences / 12 mois)Générer 20 destinations inspirantes (data statique + scoring)Sélection par l’utilisateur des destinations à suivreCalcul en temps réel des prix via Tequila APIseulement pour les destinations sélectionnéesseulement pour les week-ends pertinentsPage récap des deals trouvésAlertes automatiquesemail (via SendGrid)si prix < seuil définiou si variation >10%Stockage et rafraîchissement périodique
+🚀 Fonctionnalités “phase 2” (à préparer ou pré-architecturer)
+filtre climat (ex : minimum 20°C)filtre durée de volfiltre type de destination (plage, nature, culture, food, etc.)extension full mondemulti-départpartage social (“regarde ce deal improbable”)IA pour suggestion personnalisée
+🧪 Critères de succès du MVP
+L’utilisateur découvre des destinations qu’il n’aurait jamais cherchées lui-mêmeLe système trouve au moins 1 deal concret par utilisateur dans les 7 joursLe coût API reste < 50–100 €/mois via l’approche hybrideTaux de clic sur liens affiliés > 8–12%
+🧾 Livrables que Replit doit produire
+Backend complet (API REST)Frontend minimal (React ou HTML/CSS simple)Intégration Tequila APIBase de données opérationnelleCron jobs / tasks de refreshDocumentation README avec :instructions d’installationconfig des clés APIendpoints internesexemples de requêtesschéma de donnéesTests de base (API + date generation)
+🟩 Fin du prompt.
