@@ -2,58 +2,83 @@ import type { Express } from "express";
 import { storage } from "./storage";
 import { amadeusClient } from "./amadeus-client";
 import { format, addDays, addWeeks } from "date-fns";
-import { destinationsData } from "./destinations-data";
+import { destinationsData, calculateDistance, estimateFlightDuration } from "./destinations-data";
 
 export function registerRoutes(app: Express) {
   // GET /api/destinations - Get scored destinations
-  app.get("/api/destinations", async (req, res) => {
-    try {
-      const { origin, budget, maxDistance, pattern } = req.query;
+app.get("/api/destinations", async (req, res) => {
+  try {
+    const { origin, budget, maxDistance } = req.query;
 
-      if (!origin || !budget) {
-        return res.status(400).json({ error: "origin and budget are required" });
-      }
-
-      const maxBudget = parseFloat(budget as string);
-      const maxDist = maxDistance ? parseFloat(maxDistance as string) : undefined;
-
-      // Filter and score destinations
-      let destinations = destinationsData.filter(dest => {
-        if (maxDist && dest.distance > maxDist) return false;
-        return dest.estimatedPrice <= maxBudget;
-      });
-
-      // Score destinations
-      destinations = destinations.map(dest => {
-        let score = 0;
-
-        // Originality score (0-40 points)
-        score += dest.originalityScore || 30;
-
-        // Budget score (0-30 points)
-        const budgetRatio = dest.estimatedPrice / maxBudget;
-        score += (1 - budgetRatio) * 30;
-
-        // Distance score (0-20 points) - moderate distance preferred
-        const distanceScore = dest.distance < 3000 ? 20 : Math.max(0, 20 - ((dest.distance - 3000) / 1000) * 2);
-        score += distanceScore;
-
-        // Popularity penalty (0-10 points) - favor less known
-        score += 10 - (dest.popularity || 5);
-
-        return { ...dest, score: Math.round(score) };
-      });
-
-      // Sort by score descending
-      destinations.sort((a, b) => b.score - a.score);
-
-      // Return top 20
-      res.json(destinations.slice(0, 20));
-    } catch (error: any) {
-      console.error("Error in /api/destinations:", error);
-      res.status(500).json({ error: error.message });
+    if (!origin || !budget) {
+      return res.status(400).json({ error: "origin and budget are required" });
     }
-  });
+
+    const maxBudget = parseFloat(budget as string);
+    const maxDist = maxDistance ? parseFloat(maxDistance as string) : undefined;
+
+    // Coordonnées des aéroports
+    const airportCoords: Record<string, { lat: number; lon: number }> = {
+      CDG: { lat: 49.0097, lon: 2.5479 },
+      ORY: { lat: 48.7233, lon: 2.3794 },
+      NCE: { lat: 43.6584, lon: 7.2159 },
+      LYS: { lat: 45.7256, lon: 5.0811 },
+      MRS: { lat: 43.4393, lon: 5.2214 },
+    };
+
+    const originCoords = airportCoords[origin as string] || airportCoords.CDG;
+
+    // Calculer distance et prix pour chaque destination
+    let destinations = destinationsData.map(dest => {
+      const distance = calculateDistance(
+        originCoords.lat,
+        originCoords.lon,
+        dest.latitude,
+        dest.longitude
+      );
+      
+      const estimatedPrice = Math.round(50 + (distance / 1000) * 80);
+      
+      return { ...dest, distance, estimatedPrice };
+    });
+
+    // Filter by budget and distance
+    destinations = destinations.filter(dest => {
+      if (maxDist && dest.distance > maxDist) return false;
+      return dest.estimatedPrice <= maxBudget;
+    });
+
+    // Score destinations
+    destinations = destinations.map(dest => {
+      let score = 0;
+
+      // Originality score (0-40 points)
+      score += (dest.uniquenessScore || 0.5) * 40;
+
+      // Budget score (0-30 points)
+      const budgetRatio = dest.estimatedPrice / maxBudget;
+      score += (1 - budgetRatio) * 30;
+
+      // Distance score (0-20 points) - moderate distance preferred
+      const distanceScore = dest.distance < 3000 ? 20 : Math.max(0, 20 - ((dest.distance - 3000) / 1000) * 2);
+      score += distanceScore;
+
+      // Uniqueness bonus (0-10 points)
+      score += dest.uniquenessScore * 10;
+
+      return { ...dest, score: Math.round(score) };
+    });
+
+    // Sort by score descending
+    destinations.sort((a, b) => b.score - a.score);
+
+    // Return top 20
+    res.json(destinations.slice(0, 20));
+  } catch (error: any) {
+    console.error("Error in /api/destinations:", error);
+    res.status(500).json({ error: error.message });
+  }
+});
 
   // GET /api/flights - Search flights for selected destinations
   app.get("/api/flights", async (req, res) => {
