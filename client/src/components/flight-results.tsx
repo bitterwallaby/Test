@@ -46,7 +46,10 @@ export function FlightResults({ searchCriteria, destinations, onBack }: FlightRe
       const params = new URLSearchParams({
         origin: searchCriteria.origin,
         destinations: JSON.stringify(destinations),
-        pattern: JSON.stringify(searchCriteria.pattern || { type: searchCriteria.patternType, duration: searchCriteria.duration }),
+        pattern: JSON.stringify(searchCriteria.pattern || { 
+          type: searchCriteria.patternType, 
+          duration: searchCriteria.duration 
+        }),
       });
       
       if (searchCriteria.budget) {
@@ -57,7 +60,34 @@ export function FlightResults({ searchCriteria, destinations, onBack }: FlightRe
       if (!response.ok) {
         throw new Error("Erreur lors de la recherche de vols");
       }
-      return response.json();
+      
+      const data = await response.json();
+      
+      // Transformer le format backend → frontend
+      const flattenedFlights: FlightOffer[] = [];
+      
+      data.forEach((destGroup: any) => {
+        destGroup.flights.forEach((flight: any) => {
+          const firstSegment = flight.itineraries[0]?.segments[0];
+          const lastSegment = flight.itineraries[0]?.segments[flight.itineraries[0].segments.length - 1];
+          
+          flattenedFlights.push({
+            id: flight.id,
+            price: parseFloat(flight.price.total),
+            currency: flight.price.currency,
+            origin: firstSegment?.departure.iataCode || searchCriteria.origin,
+            destination: lastSegment?.arrival.iataCode || destGroup.destination,
+            outboundDate: firstSegment?.departure.at.split('T')[0] || '',
+            returnDate: undefined,
+            duration: flight.itineraries[0]?.duration || '',
+            stops: flight.itineraries[0]?.segments.length - 1 || 0,
+            airlines: flight.validatingAirlineCodes || [],
+            bookingLink: `https://www.google.com/flights?hl=fr#flt=${firstSegment?.departure.iataCode}.${lastSegment?.arrival.iataCode}.${firstSegment?.departure.at.split('T')[0]}`,
+          });
+        });
+      });
+      
+      return flattenedFlights;
     },
   });
 
@@ -200,7 +230,11 @@ export function FlightResults({ searchCriteria, destinations, onBack }: FlightRe
 
       {/* Results */}
       <div className="space-y-4">
-        {sortedFlights.map((flight, index) => (
+        {sortedFlights.map((flight, index) => {
+          // Protection contre les données manquantes
+          if (!flight || !flight.id) return null;
+          
+          return (
           <Card
             key={flight.id}
             className="p-6 hover-elevate transition-all"
@@ -223,7 +257,7 @@ export function FlightResults({ searchCriteria, destinations, onBack }: FlightRe
                       )}
                     </div>
                     <div className="flex items-center gap-2 text-sm text-muted-foreground">
-                      {flight.airlines.join(", ")}
+                      {flight.airlines?.join(", ") || "N/A"}
                     </div>
                   </div>
                 </div>
@@ -297,7 +331,8 @@ export function FlightResults({ searchCriteria, destinations, onBack }: FlightRe
               </div>
             </div>
           </Card>
-        ))}
+          );
+        })}
       </div>
 
       {/* Empty State */}
