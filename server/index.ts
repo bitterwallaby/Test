@@ -1,31 +1,29 @@
-import express, { type Request, Response, NextFunction } from "express";
+import "dotenv/config";
+import express, { Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
 import { startAlertScheduler, startCleanupScheduler } from "./alert-scheduler";
 
 const app = express();
 
-declare module 'http' {
-  interface IncomingMessage {
-    rawBody: unknown
-  }
-}
+// Middleware JSON + rawBody
 app.use(express.json({
-  verify: (req, _res, buf) => {
+  verify: (req: any, _res, buf) => {
     req.rawBody = buf;
   }
 }));
 app.use(express.urlencoded({ extended: false }));
 
+// Logging middleware…
 app.use((req, res, next) => {
   const start = Date.now();
   const path = req.path;
-  let capturedJsonResponse: Record<string, any> | undefined = undefined;
+  let capturedJsonResponse: any;
 
-  const originalResJson = res.json;
-  res.json = function (bodyJson, ...args) {
-    capturedJsonResponse = bodyJson;
-    return originalResJson.apply(res, [bodyJson, ...args]);
+  const originalJson = res.json;
+  res.json = function (body, ...args) {
+    capturedJsonResponse = body;
+    return originalJson.apply(res, [body, ...args]);
   };
 
   res.on("finish", () => {
@@ -35,11 +33,7 @@ app.use((req, res, next) => {
       if (capturedJsonResponse) {
         logLine += ` :: ${JSON.stringify(capturedJsonResponse)}`;
       }
-
-      if (logLine.length > 80) {
-        logLine = logLine.slice(0, 79) + "…";
-      }
-
+      if (logLine.length > 80) logLine = logLine.slice(0, 79) + "…";
       log(logLine);
     }
   });
@@ -47,39 +41,28 @@ app.use((req, res, next) => {
   next();
 });
 
+// --- MAIN ---
 (async () => {
-  const server = await registerRoutes(app);
+  await registerRoutes(app);
 
+  // Error handler
   app.use((err: any, _req: Request, res: Response, _next: NextFunction) => {
-    const status = err.status || err.statusCode || 500;
-    const message = err.message || "Internal Server Error";
-
-    res.status(status).json({ message });
+    res.status(err.status || 500).json({ message: err.message || "Internal Server Error" });
     throw err;
   });
 
-  // importantly only setup vite in development and after
-  // setting up all the other routes so the catch-all route
-  // doesn't interfere with the other routes
+  // Vite or static
   if (app.get("env") === "development") {
-    await setupVite(app, server);
+    await setupVite(app);
   } else {
     serveStatic(app);
   }
 
-  // ALWAYS serve the app on the port specified in the environment variable PORT
-  // Other ports are firewalled. Default to 5000 if not specified.
-  // this serves both the API and the client.
-  // It is the only port that is not firewalled.
-  const port = parseInt(process.env.PORT || '5000', 10);
-  server.listen({
-    port,
-    host: "0.0.0.0",
-    reusePort: true,
-  }, () => {
+  const port = parseInt(process.env.PORT || "5000", 10);
+
+  app.listen(port, "0.0.0.0", () => {
     log(`serving on port ${port}`);
 
-    // Démarrer les schedulers pour les alertes
     if (process.env.NODE_ENV === "production" || process.env.ENABLE_ALERTS === "true") {
       startAlertScheduler();
       startCleanupScheduler();

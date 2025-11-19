@@ -1,6 +1,6 @@
 import cron from "node-cron";
 import { storage } from "./storage";
-import { kiwiClient } from "./kiwi-client";
+import { amadeusClient } from "./amadeus-client";
 import { generateSampleDates } from "./date-patterns";
 import { sendFlightAlert } from "./email-service";
 import type { DatePattern } from "@shared/schema";
