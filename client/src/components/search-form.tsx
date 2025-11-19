@@ -51,7 +51,7 @@ export function SearchForm({ onSubmit }: SearchFormProps) {
   const [budget, setBudget] = useState(500);
   const [maxDistance, setMaxDistance] = useState(5000);
   const [selectedDays, setSelectedDays] = useState<number[]>([]);
-  const [from, setFrom] = useState("");
+  const [origin, setOrigin] = useState("");
 
   const form = useForm<SearchFormValues>({
     resolver: zodResolver(searchFormSchema),
@@ -77,7 +77,7 @@ export function SearchForm({ onSubmit }: SearchFormProps) {
 
     onSubmit({
       ...values,
-      from: values.origin,
+      origin: values.origin,
       pattern: pattern as any,
       preferredDays: selectedDays.length > 0 ? selectedDays : undefined,
     });
