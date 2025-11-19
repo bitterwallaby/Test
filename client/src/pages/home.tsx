@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
 import { SearchForm } from "@/components/search-form";
 import { DestinationDiscovery } from "@/components/destination-discovery";
 import { FlightResults } from "@/components/flight-results";
@@ -8,11 +9,18 @@ import { ThemeToggle } from "@/components/theme-toggle";
 import type { Destination, FlightOffer } from "@shared/schema";
 
 export default function Home() {
+  const [location, setLocation] = useLocation();
   const [step, setStep] = useState<"search" | "discover" | "results">("search");
   const [searchCriteria, setSearchCriteria] = useState<any>(null);
-  const [destinations, setDestinations] = useState<Destination[]>([]);
   const [selectedDestinations, setSelectedDestinations] = useState<string[]>([]);
   const [flightOffers, setFlightOffers] = useState<FlightOffer[]>([]);
+
+  // Sync URL with step
+  useEffect(() => {
+    if (step === "search") setLocation("/search");
+    if (step === "discover") setLocation("/discover");
+    if (step === "results") setLocation("/results");
+  }, [step, setLocation]);
 
   const handleSearchSubmit = (criteria: any) => {
     setSearchCriteria(criteria);
@@ -27,20 +35,17 @@ export default function Home() {
   const handleBackToSearch = () => {
     setStep("search");
     setSearchCriteria(null);
-    setDestinations([]);
     setSelectedDestinations([]);
     setFlightOffers([]);
   };
 
   return (
     <div className="min-h-screen bg-background">
-      {/* Header */}
       <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <button
             onClick={handleBackToSearch}
             className="flex items-center gap-2 hover-elevate active-elevate-2 rounded-md px-2 py-1 -ml-2"
-            data-testid="button-home"
           >
             <Plane className="h-6 w-6 text-primary" />
             <div className="flex flex-col items-start">
@@ -48,14 +53,10 @@ export default function Home() {
               <p className="text-xs text-muted-foreground">Explorez le monde</p>
             </div>
           </button>
-          
-          <div className="flex items-center gap-2">
-            <ThemeToggle />
-          </div>
+          <ThemeToggle />
         </div>
       </header>
 
-      {/* Main Content */}
       <main className="max-w-7xl mx-auto px-4 py-8">
         {step === "search" && (
           <div className="space-y-8">
@@ -65,7 +66,6 @@ export default function Home() {
                 Découvrez des destinations inattendues selon votre budget et vos disponibilités flexibles
               </p>
             </div>
-            
             <div className="grid lg:grid-cols-[1fr,400px] gap-8">
               <SearchForm onSubmit={handleSearchSubmit} />
               <SavedSearches onLoadSearch={setSearchCriteria} />
