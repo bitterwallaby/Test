@@ -6,21 +6,52 @@ import { FlightResults } from "@/components/flight-results";
 import { SavedSearches } from "@/components/saved-searches";
 import { Plane } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
-import type { Destination, FlightOffer } from "@shared/schema";
+import type { FlightOffer } from "@shared/schema";
+import { DESTINATIONS } from "@/destinations-data";
 
 export default function Home() {
   const [location, setLocation] = useLocation();
+
   const [step, setStep] = useState<"search" | "discover" | "results">("search");
-  const [searchCriteria, setSearchCriteria] = useState<any>(null);
+  const [searchCriteria, setSearchCriteria] = useState<any>({});
   const [selectedDestinations, setSelectedDestinations] = useState<string[]>([]);
   const [flightOffers, setFlightOffers] = useState<FlightOffer[]>([]);
 
-  // Sync URL with step
+  // 🔄 Synchroniser step & critères depuis l'URL au chargement
   useEffect(() => {
-    if (step === "search") setLocation("/search");
-    if (step === "discover") setLocation("/discover");
-    if (step === "results") setLocation("/results");
-  }, [step, setLocation]);
+    const url = new URL(window.location.href);
+    const path = url.pathname;
+
+    if (path.startsWith("/discover")) {
+      setStep("discover");
+      setSearchCriteria({
+        budget: url.searchParams.get("budget") || "",
+        maxDistance: url.searchParams.get("maxDistance") || "",
+      });
+    } else if (path.startsWith("/results")) {
+      setStep("results");
+      setSearchCriteria({
+        budget: url.searchParams.get("budget") || "",
+        maxDistance: url.searchParams.get("maxDistance") || "",
+      });
+      const dests = url.searchParams.get("destinations");
+      setSelectedDestinations(dests ? dests.split(",") : []);
+    } else {
+      setStep("search");
+    }
+  }, []);
+
+  // 🔄 Mettre à jour l'URL quand step ou critères changent
+  useEffect(() => {
+    const params = new URLSearchParams();
+    if (searchCriteria.budget) params.set("budget", searchCriteria.budget);
+    if (searchCriteria.maxDistance) params.set("maxDistance", searchCriteria.maxDistance);
+    if (selectedDestinations.length) params.set("destinations", selectedDestinations.join(","));
+
+    if (step === "discover") setLocation(`/discover?${params.toString()}`, { replace: true });
+    if (step === "results") setLocation(`/results?${params.toString()}`, { replace: true });
+    if (step === "search") setLocation(`/`, { replace: true });
+  }, [step, searchCriteria, selectedDestinations, setLocation]);
 
   const handleSearchSubmit = (criteria: any) => {
     setSearchCriteria(criteria);
@@ -34,18 +65,18 @@ export default function Home() {
 
   const handleBackToSearch = () => {
     setStep("search");
-    setSearchCriteria(null);
+    setSearchCriteria({});
     setSelectedDestinations([]);
     setFlightOffers([]);
   };
 
   return (
     <div className="min-h-screen bg-background">
-      <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur supports-[backdrop-filter]:bg-background/60">
+      <header className="sticky top-0 z-50 border-b bg-background/95 backdrop-blur">
         <div className="max-w-7xl mx-auto px-4 py-4 flex items-center justify-between">
           <button
             onClick={handleBackToSearch}
-            className="flex items-center gap-2 hover-elevate active-elevate-2 rounded-md px-2 py-1 -ml-2"
+            className="flex items-center gap-2 hover-elevate active-elevate-2 rounded-md px-2 py-1"
           >
             <Plane className="h-6 w-6 text-primary" />
             <div className="flex flex-col items-start">
