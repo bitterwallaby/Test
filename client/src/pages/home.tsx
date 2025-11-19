@@ -7,7 +7,6 @@ import { SavedSearches } from "@/components/saved-searches";
 import { Plane } from "lucide-react";
 import { ThemeToggle } from "@/components/theme-toggle";
 import type { FlightOffer } from "@shared/schema";
-import { DESTINATIONS } from "@/destinations-data";
 
 export default function Home() {
   const [location, setLocation] = useLocation();
@@ -25,12 +24,14 @@ export default function Home() {
     if (path.startsWith("/discover")) {
       setStep("discover");
       setSearchCriteria({
+        from: url.searchParams.get("from") || "",
         budget: url.searchParams.get("budget") || "",
         maxDistance: url.searchParams.get("maxDistance") || "",
       });
     } else if (path.startsWith("/results")) {
       setStep("results");
       setSearchCriteria({
+        from: url.searchParams.get("from") || "",
         budget: url.searchParams.get("budget") || "",
         maxDistance: url.searchParams.get("maxDistance") || "",
       });
@@ -44,6 +45,7 @@ export default function Home() {
   // 🔄 Mettre à jour l'URL quand step ou critères changent
   useEffect(() => {
     const params = new URLSearchParams();
+    if (searchCriteria.from) params.set("from", searchCriteria.from);
     if (searchCriteria.budget) params.set("budget", searchCriteria.budget);
     if (searchCriteria.maxDistance) params.set("maxDistance", searchCriteria.maxDistance);
     if (selectedDestinations.length) params.set("destinations", selectedDestinations.join(","));

@@ -1,5 +1,4 @@
-// client/src/pages/SearchResults.tsx
-import { useLocation } from "wouter";
+import { useRoute } from "wouter";
 import { DESTINATIONS } from "@/destinations-data";
 
 export default function SearchResults() {
