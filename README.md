@@ -35,10 +35,11 @@ Contrairement aux comparateurs de vols traditionnels (Skyscanner, Kayak) qui né
 - Affichage enrichi : distance, durée de vol estimée, score d'originalité
 
 ### 3. Recherche de Vols en Temps Réel
-- Intégration **Amadeus Flight API**
+- Intégration **Kiwi.com Tequila API**
 - Génération automatique de dates selon le pattern choisi
 - Échantillonnage intelligent (3 dates par destination) pour limiter les coûts API
 - Affichage des meilleurs prix avec détails complets
+- Liens d'affiliation Kiwi.com pour la monétisation
 
 ### 4. Système d'Alertes
 - Sauvegarde des recherches avec critères
@@ -50,9 +51,10 @@ Contrairement aux comparateurs de vols traditionnels (Skyscanner, Kayak) qui né
 ### 5. Optimisation des Coûts API
 - **Approche hybride 2 étages** :
   1. **Étage 1** : Scoring avec dataset statique (gratuit)
-  2. **Étage 2** : Appels API Amadeus uniquement pour destinations sélectionnées
+  2. **Étage 2** : Appels API Kiwi.com uniquement pour destinations sélectionnées
 - Cache de 1 heure pour éviter les appels redondants
 - Limitation du nombre de destinations et dates vérifiées
+- Scheduler cron pour vérifications automatiques périodiques
 
 ## 🏗️ Architecture
 
@@ -65,21 +67,24 @@ Contrairement aux comparateurs de vols traditionnels (Skyscanner, Kayak) qui né
 
 ### Backend (Node.js + Express)
 - **Express** avec TypeScript
-- **Amadeus SDK** pour les recherches de vols
+- **Kiwi.com Tequila API** pour les recherches de vols
 - **Resend** pour les emails transactionnels
 - **date-fns** pour la manipulation de dates
-- **MemStorage** pour le stockage (peut être remplacé par PostgreSQL)
+- **Drizzle ORM** + **Supabase PostgreSQL** pour le stockage
+- **node-cron** pour les tâches planifiées
 
 ### Services Externes
-- **Amadeus Self-Service API** : Recherche de vols
+- **Kiwi.com Tequila API** : Recherche de vols en temps réel
 - **Resend** : Envoi d'emails d'alerte
+- **Supabase** : Base de données PostgreSQL hébergée
 
 ## 📦 Installation
 
 ### Prérequis
 - Node.js 20+
-- Compte Amadeus (gratuit) : https://developers.amadeus.com/
+- Compte Kiwi.com (gratuit) : https://tequila.kiwi.com/portal/login
 - Compte Resend (gratuit) : https://resend.com/
+- Base de données Supabase (incluse avec Replit)
 
 ### Configuration
 
@@ -88,15 +93,30 @@ Contrairement aux comparateurs de vols traditionnels (Skyscanner, Kayak) qui né
 npm install
 ```
 
-2. Configurer les variables d'environnement dans Replit Secrets :
+2. Configurer les variables d'environnement dans `.env` :
 ```env
-AMADEUS_API_KEY=votre_client_id
-AMADEUS_API_SECRET=votre_client_secret
+# Supabase (fourni automatiquement)
+DATABASE_URL=postgresql://...
+VITE_SUPABASE_URL=https://...
+VITE_SUPABASE_ANON_KEY=...
+
+# Kiwi.com Tequila API
+KIWI_API_KEY=votre_kiwi_api_key
+KIWI_PARTNER_ID=votre_partner_id (optionnel)
+
+# Resend
 RESEND_API_KEY=votre_resend_api_key
-SESSION_SECRET=votre_secret_session
+
+# Alertes (optionnel en dev)
+ENABLE_ALERTS=false
 ```
 
-3. Lancer l'application :
+3. Créer les tables de la base de données :
+```bash
+npm run db:push
+```
+
+4. Lancer l'application :
 ```bash
 npm run dev
 ```

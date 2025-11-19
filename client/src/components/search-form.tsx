@@ -22,7 +22,9 @@ const searchFormSchema = z.object({
   preferredDays: z.array(z.number()).optional(),
 });
 
-type SearchFormValues = z.infer<typeof searchFormSchema>;
+type SearchFormValues = z.infer<typeof searchFormSchema> & {
+  pattern?: any;
+};
 
 const PATTERN_TYPES = [
   { value: "weekend", label: "Week-end (Ven-Dim)", duration: 3 },
@@ -74,7 +76,7 @@ export function SearchForm({ onSubmit }: SearchFormProps) {
 
     onSubmit({
       ...values,
-      pattern,
+      pattern: pattern as any,
       preferredDays: selectedDays.length > 0 ? selectedDays : undefined,
     });
   };

@@ -2,7 +2,7 @@ import type { Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { DESTINATIONS, calculateDistance, estimateFlightDuration } from "./destinations-data";
-import { searchFlights, searchCheapestDestinations } from "./amadeus-client";
+import { kiwiClient } from "./kiwi-client";
 import { generateSampleDates } from "./date-patterns";
 import { sendFlightAlert, sendWelcomeEmail } from "./email-service";
 import type { Destination, FlightOffer, DatePattern } from "@shared/schema";
@@ -125,38 +125,19 @@ export async function registerRoutes(app: Express): Promise<Server> {
         // Max 5 destinations
         for (const dateRange of dateRanges) {
           try {
-            const amadeusFlights = await searchFlights({
-              origin: originCode,
-              destination: destCode,
-              departureDate: dateRange.outbound,
-              returnDate: dateRange.return,
-              adults: 1,
-              maxPrice: maxBudget,
-            });
+            const kiwiResponse = await kiwiClient.searchFlightToDestination(
+              originCode,
+              destCode,
+              dateRange.outbound,
+              dateRange.return,
+              maxBudget
+            );
 
-            // Transformer les résultats Amadeus en notre format
-            if (amadeusFlights && Array.isArray(amadeusFlights)) {
-              for (const flight of amadeusFlights.slice(0, 2)) {
+            // Transformer les résultats Kiwi en notre format
+            if (kiwiResponse && kiwiResponse.data && Array.isArray(kiwiResponse.data)) {
+              for (const kiwiOffer of kiwiResponse.data.slice(0, 2)) {
                 // Max 2 vols par destination/date
-                const flightOffer: FlightOffer = {
-                  id: flight.id,
-                  price: parseFloat(flight.price.total),
-                  currency: flight.price.currency,
-                  origin: originCode,
-                  destination: destCode,
-                  outboundDate: dateRange.outbound,
-                  returnDate: dateRange.return,
-                  duration: flight.itineraries[0]?.duration || "N/A",
-                  stops: (flight.itineraries[0]?.segments?.length || 1) - 1,
-                  airlines: [
-                    ...new Set(
-                      flight.itineraries[0]?.segments?.map((s: any) => s.carrierCode) ||
-                        []
-                    ),
-                  ],
-                  bookingLink: `https://www.google.com/flights?hl=fr#flt=${originCode}.${destCode}.${dateRange.outbound}*${destCode}.${originCode}.${dateRange.return}`,
-                };
-
+                const flightOffer = kiwiClient.transformToFlightOffer(kiwiOffer);
                 allFlights.push(flightOffer);
               }
             }

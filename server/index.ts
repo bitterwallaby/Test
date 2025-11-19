@@ -1,6 +1,7 @@
 import express, { type Request, Response, NextFunction } from "express";
 import { registerRoutes } from "./routes";
 import { setupVite, serveStatic, log } from "./vite";
+import { startAlertScheduler, startCleanupScheduler } from "./alert-scheduler";
 
 const app = express();
 
@@ -77,5 +78,13 @@ app.use((req, res, next) => {
     reusePort: true,
   }, () => {
     log(`serving on port ${port}`);
+
+    // Démarrer les schedulers pour les alertes
+    if (process.env.NODE_ENV === "production" || process.env.ENABLE_ALERTS === "true") {
+      startAlertScheduler();
+      startCleanupScheduler();
+    } else {
+      log("Alert scheduler disabled (set ENABLE_ALERTS=true to enable)");
+    }
   });
 })();

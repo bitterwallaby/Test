@@ -5,8 +5,13 @@ import {
   type InsertAlert,
   type PriceHistory,
   type InsertPriceHistory,
+  searches,
+  alerts,
+  priceHistory,
 } from "@shared/schema";
-import { randomUUID } from "crypto";
+import { drizzle } from "drizzle-orm/neon-http";
+import { neon } from "@neondatabase/serverless";
+import { eq, and, desc } from "drizzle-orm";
 
 export interface IStorage {
   // Searches
@@ -26,101 +31,106 @@ export interface IStorage {
   getPriceHistory(searchId: string, destination: string): Promise<PriceHistory[]>;
 }
 
-export class MemStorage implements IStorage {
-  private searches: Map<string, Search>;
-  private alerts: Map<string, Alert>;
-  private priceHistory: Map<string, PriceHistory>;
+// Implémentation avec Drizzle + Supabase
+export class DatabaseStorage implements IStorage {
+  private db: ReturnType<typeof drizzle>;
 
-  constructor() {
-    this.searches = new Map();
-    this.alerts = new Map();
-    this.priceHistory = new Map();
+  constructor(databaseUrl: string) {
+    const sql = neon(databaseUrl);
+    this.db = drizzle(sql);
   }
 
   // Searches
   async createSearch(insertSearch: InsertSearch): Promise<Search> {
-    const id = randomUUID();
-    const now = new Date();
-    const search: Search = {
-      ...insertSearch,
-      id,
-      createdAt: now,
-      updatedAt: now,
-    };
-    this.searches.set(id, search);
+    const [search] = await this.db
+      .insert(searches)
+      .values(insertSearch as any)
+      .returning();
     return search;
   }
 
   async getSearches(): Promise<Search[]> {
-    return Array.from(this.searches.values()).sort(
-      (a, b) => (b.createdAt?.getTime() || 0) - (a.createdAt?.getTime() || 0)
-    );
+    return this.db
+      .select()
+      .from(searches)
+      .orderBy(desc(searches.createdAt));
   }
 
   async getSearch(id: string): Promise<Search | undefined> {
-    return this.searches.get(id);
+    const [search] = await this.db
+      .select()
+      .from(searches)
+      .where(eq(searches.id, id))
+      .limit(1);
+    return search;
   }
 
   async deleteSearch(id: string): Promise<void> {
-    this.searches.delete(id);
     // Supprimer également les alertes associées
-    Array.from(this.alerts.entries()).forEach(([alertId, alert]) => {
-      if (alert.searchId === id) {
-        this.alerts.delete(alertId);
-      }
-    });
+    await this.db.delete(alerts).where(eq(alerts.searchId, id));
+    await this.db.delete(searches).where(eq(searches.id, id));
   }
 
   async getActiveSearches(): Promise<Search[]> {
-    return Array.from(this.searches.values()).filter((search) => search.isActive);
+    return this.db
+      .select()
+      .from(searches)
+      .where(eq(searches.isActive, true));
   }
 
   // Alerts
   async createAlert(insertAlert: InsertAlert): Promise<Alert> {
-    const id = randomUUID();
-    const alert: Alert = {
-      ...insertAlert,
-      id,
-      sent: false,
-      createdAt: new Date(),
-    };
-    this.alerts.set(id, alert);
+    const [alert] = await this.db
+      .insert(alerts)
+      .values(insertAlert as any)
+      .returning();
     return alert;
   }
 
   async getAlerts(searchId?: string): Promise<Alert[]> {
-    const alerts = Array.from(this.alerts.values());
     if (searchId) {
-      return alerts.filter((alert) => alert.searchId === searchId);
+      return this.db
+        .select()
+        .from(alerts)
+        .where(eq(alerts.searchId, searchId));
     }
-    return alerts;
+    return this.db.select().from(alerts);
   }
 
   async markAlertSent(id: string): Promise<void> {
-    const alert = this.alerts.get(id);
-    if (alert) {
-      alert.sent = true;
-      this.alerts.set(id, alert);
-    }
+    await this.db
+      .update(alerts)
+      .set({ sent: true })
+      .where(eq(alerts.id, id));
   }
 
   // Price History
   async addPriceHistory(insertHistory: InsertPriceHistory): Promise<PriceHistory> {
-    const id = randomUUID();
-    const history: PriceHistory = {
-      ...insertHistory,
-      id,
-      recordedAt: new Date(),
-    };
-    this.priceHistory.set(id, history);
+    const [history] = await this.db
+      .insert(priceHistory)
+      .values(insertHistory)
+      .returning();
     return history;
   }
 
   async getPriceHistory(searchId: string, destination: string): Promise<PriceHistory[]> {
-    return Array.from(this.priceHistory.values())
-      .filter((h) => h.searchId === searchId && h.destination === destination)
-      .sort((a, b) => (b.recordedAt?.getTime() || 0) - (a.recordedAt?.getTime() || 0));
+    return this.db
+      .select()
+      .from(priceHistory)
+      .where(
+        and(
+          eq(priceHistory.searchId, searchId),
+          eq(priceHistory.destination, destination)
+        )
+      )
+      .orderBy(desc(priceHistory.recordedAt));
   }
 }
 
-export const storage = new MemStorage();
+// Export instance basée sur la variable d'environnement
+export const storage = process.env.DATABASE_URL
+  ? new DatabaseStorage(process.env.DATABASE_URL)
+  : (() => {
+      console.warn("DATABASE_URL not found, storage will not work!");
+      throw new Error("DATABASE_URL is required");
+    })();
