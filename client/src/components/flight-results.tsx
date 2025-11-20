@@ -236,7 +236,7 @@ export function FlightResults({ searchCriteria, destinations, onBack }: FlightRe
           
           return (
           <Card
-            key={flight.id}
+            key={`${flight.id}-${flight.destination}-${index}`}
             className="p-6 hover-elevate transition-all"
             data-testid={`card-flight-${index}`}
           >
