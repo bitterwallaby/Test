@@ -24,14 +24,14 @@ export default function Home() {
     if (path.startsWith("/discover")) {
       setStep("discover");
       setSearchCriteria({
-        from: url.searchParams.get("from") || "",
+        from: url.searchParams.get("origin") || "",
         budget: url.searchParams.get("budget") || "",
         maxDistance: url.searchParams.get("maxDistance") || "",
       });
     } else if (path.startsWith("/results")) {
       setStep("results");
       setSearchCriteria({
-        from: url.searchParams.get("from") || "",
+        from: url.searchParams.get("origin") || "",
         budget: url.searchParams.get("budget") || "",
         maxDistance: url.searchParams.get("maxDistance") || "",
       });

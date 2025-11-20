@@ -5,7 +5,6 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 
 import Home from "@/pages/home";
-import SearchResults from "@/pages/SearchResults";
 import NotFound from "@/pages/not-found";
 
 export default function App() {
@@ -16,7 +15,7 @@ export default function App() {
         <Switch>
           <Route path="/" component={Home} />
           <Route path="/discover" component={Home} /> {/* Home gère discover via step */}
-          <Route path="/results" component={SearchResults} />
+          <Route path="/results" component={Home} />
           <Route component={NotFound} />
         </Switch>
       </TooltipProvider>
